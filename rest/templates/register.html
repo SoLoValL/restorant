@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}Регистрация — Ресторан{% endblock %}
+
+{% block content %}
+<section class="py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 animate-on-scroll animate-scale">
+                <div class="card shadow">
+                    <div class="card-body p-5">
+                        <h2 class="text-center mb-4" style="color: var(--dark);">Регистрация</h2>
+                        <form id="registerForm">
+                            <div class="mb-3">
+                                <label class="form-label">Имя пользователя</label>
+                                <input type="text" class="form-control" id="username" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Телефон</label>
+                                <input type="tel" class="form-control" id="phone">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Пароль</label>
+                                <input type="password" class="form-control" id="password1" required>
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label">Подтвердите пароль</label>
+                                <input type="password" class="form-control" id="password2" required>
+                            </div>
+                            <div id="message" class="alert d-none"></div>
+                            <button type="submit" class="btn gold-btn w-100">Зарегистрироваться</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('registerForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const msg = document.getElementById('message');
+    msg.className = 'alert d-none';
+
+    const data = {
+        username: document.getElementById('username').value,
+        email: document.getElementById('email').value,
+        phone: document.getElementById('phone').value,
+        password: document.getElementById('password1').value,
+    };
+
+    if (data.password !== document.getElementById('password2').value) {
+        msg.textContent = 'Пароли не совпадают';
+        msg.className = 'alert alert-danger';
+        return;
+    }
+
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = 'Отправка...';
+
+    try {
+        const res = await fetch('/register/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        const json = await res.json();
+        if (res.ok) {
+            msg.textContent = 'Регистрация успешна! Вы можете войти.';
+            msg.className = 'alert alert-success';
+            e.target.reset();
+            // Анимация успеха
+            btn.innerHTML = '<i class="fas fa-check me-2"></i>Готово!';
+            btn.style.background = '#28a745';
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.textContent = 'Зарегистрироваться';
+                btn.style.background = '';
+            }, 2000);
+        } else {
+            msg.textContent = Object.values(json).join(' ');
+            msg.className = 'alert alert-danger';
+            btn.disabled = false;
+            btn.textContent = 'Зарегистрироваться';
+        }
+    } catch (err) {
+        msg.textContent = 'Ошибка сервера';
+        msg.className = 'alert alert-danger';
+        btn.disabled = false;
+        btn.textContent = 'Зарегистрироваться';
+    }
+});
+</script>
+{% endblock %}

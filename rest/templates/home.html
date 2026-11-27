@@ -1,0 +1,226 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Главная — Ресторан{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<section class="hero">
+    <div class="container text-center">
+        <h1 class="mb-4">Добро пожаловать</h1>
+        <p class="lead mb-4 fs-4">Изысканная кухня, уютная атмосфера, незабываемые впечатления</p>
+        <a href="#menu" class="btn gold-btn btn-lg px-5">Наше меню</a>
+    </div>
+</section>
+
+<!-- Categories -->
+<section class="py-5">
+    <div class="container">
+        <h2 class="text-center section-title">Категории меню</h2>
+        <div class="row g-4">
+            {% for cat in categories %}
+            <div class="col-md-4 col-lg-2 animate-on-scroll animate-scale stagger-{{ forloop.counter0|add:1 }}">
+                <div class="card text-center p-3 h-100">
+                    {% if cat.image %}
+                    <img src="{{ cat.image.url }}" class="card-img-top mb-3" alt="{{ cat.name }}" style="height: 120px; object-fit: cover;">
+                    {% else %}
+                    <i class="fas fa-utensils fa-2x mb-3" style="color: var(--gold)"></i>
+                    {% endif %}
+                    <h6 class="mb-1">{{ cat.name }}</h6>
+                    <small class="text-muted">{{ cat.dishes_count }} блюд</small>
+                    {% if cat.description %}
+                    <p class="small text-muted mt-2 mb-0">{{ cat.description|truncatewords:8 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Popular Dishes -->
+<section id="menu" class="py-5 bg-light">
+    <div class="container">
+        <h2 class="text-center section-title">Популярные блюда</h2>
+        <div class="row g-4">
+            {% for dish in dishes %}
+            <div class="col-md-6 col-lg-4 animate-on-scroll stagger-{{ forloop.counter0|add:1 }}">
+                <div class="card h-100">
+                    {% if dish.image %}
+                    <img src="{{ dish.image.url }}" class="card-img-top" alt="{{ dish.name }}">
+                    {% else %}
+                    <div class="card-img-top d-flex align-items-center justify-content-center" style="background: #f0f0f0; height: 200px;">
+                        <i class="fas fa-utensils fa-3x" style="color: #ccc"></i>
+                    </div>
+                    {% endif %}
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="card-title mb-0">{{ dish.name }}</h5>
+                            <span class="badge gold-btn">{{ dish.price }} ₽</span>
+                        </div>
+                        <p class="card-text text-muted small">{{ dish.description }}</p>
+                        <div class="d-flex gap-2">
+                            {% if dish.is_vegetarian %}
+                            <span class="badge bg-success"><i class="fas fa-leaf me-1"></i>Вегетарианское</span>
+                            {% endif %}
+                            {% if not dish.is_available %}
+                            <span class="badge bg-danger">Нет в наличии</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Blog -->
+<section id="blog" class="py-5">
+    <div class="container">
+        <h2 class="text-center section-title">Наш блог</h2>
+        <div class="row g-4">
+            {% for post in posts %}
+            <div class="col-md-6 col-lg-4 animate-on-scroll stagger-{{ forloop.counter0|add:1 }}">
+                <div class="card h-100">
+                    {% if post.image %}
+                    <img src="{{ post.image.url }}" class="card-img-top" alt="{{ post.title }}">
+                    {% else %}
+                    <img src="{% static 'placeholders/blog-placeholder-1.jpg' %}" class="card-img-top" alt="{{ post.title }}">
+                    {% endif %}
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="badge gold-btn">{{ post.get_category_display }}</span>
+                            {% if post.is_featured %}
+                            <span class="badge bg-danger"><i class="fas fa-star me-1"></i>Рекомендуемый</span>
+                            {% endif %}
+                        </div>
+                        <h5 class="card-title">{{ post.title }}</h5>
+                        {% if post.excerpt %}
+                        <p class="card-text text-muted small">{{ post.excerpt }}</p>
+                        {% else %}
+                        <p class="card-text text-muted small">{{ post.text|truncatewords:30 }}</p>
+                        {% endif %}
+                        <div class="d-flex justify-content-between align-items-center text-muted small">
+                            <span><i class="far fa-calendar me-1"></i>{{ post.created_at|date:"d.m.Y" }}</span>
+                            <span><i class="far fa-clock me-1"></i>{{ post.read_time }} мин</span>
+                        </div>
+                        {% if post.tags %}
+                        <div class="mt-2 text-muted small">
+                            <i class="fas fa-tags me-1"></i>{{ post.tags|truncatechars:40 }}
+                        </div>
+                        {% endif %}
+                        <div class="text-muted small mt-2">
+                            <i class="far fa-comment me-1"></i>{{ post.comments_count }} комментариев
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Events -->
+<section id="events" class="py-5 bg-light">
+    <div class="container">
+        <h2 class="text-center section-title">Ближайшие события</h2>
+        <div class="row g-4">
+            {% for event in events %}
+            <div class="col-md-6 col-lg-4 animate-on-scroll stagger-{{ forloop.counter0|add:1 }}">
+                <div class="card h-100">
+                    {% if event.image %}
+                    <img src="{{ event.image.url }}" class="card-img-top" alt="{{ event.title }}">
+                    {% else %}
+                    <img src="{% static 'placeholders/event-placeholder-1.jpg' %}" class="card-img-top" alt="{{ event.title }}">
+                    {% endif %}
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="badge gold-btn">{{ event.get_category_display }}</span>
+                            {% if event.is_featured %}
+                            <span class="badge bg-danger"><i class="fas fa-star me-1"></i>Популярное</span>
+                            {% endif %}
+                        </div>
+                        <h5 class="card-title">{{ event.title }}</h5>
+                        <p class="text-muted small">
+                            <i class="far fa-calendar me-1"></i>{{ event.date|date:"d F Y" }} ·
+                            <i class="far fa-clock me-1"></i>{{ event.time|time:"H:i" }}
+                            {% if event.end_time %}—{{ event.end_time|time:"H:i" }}{% endif %}
+                        </p>
+                        {% if event.location %}
+                        <p class="text-muted small mb-1">
+                            <i class="fas fa-map-marker-alt me-1"></i>{{ event.location }}
+                        </p>
+                        {% endif %}
+                        {% if event.organizer %}
+                        <p class="text-muted small mb-1">
+                            <i class="fas fa-user-tie me-1"></i>{{ event.organizer }}
+                        </p>
+                        {% endif %}
+                        <p class="card-text small">{{ event.description|truncatewords:20 }}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            {% if event.price > 0 %}
+                            <span class="gold-btn badge">{{ event.price }} ₽</span>
+                            {% else %}
+                            <span class="badge bg-success">Бесплатно</span>
+                            {% endif %}
+                            {% if event.available_spots is not None %}
+                            <small class="text-muted">{{ event.available_spots }} мест</small>
+                            {% endif %}
+                        </div>
+                        {% if event.bookings_count > 0 %}
+                        <div class="mt-2 text-muted small">
+                            <i class="fas fa-users me-1"></i>Уже записано: {{ event.bookings_count }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Reviews -->
+<section id="reviews" class="py-5">
+    <div class="container">
+        <h2 class="text-center section-title">Отзывы гостей</h2>
+        <div class="row g-4">
+            {% for review in reviews %}
+            <div class="col-md-6 col-lg-4 animate-on-scroll animate-scale stagger-{{ forloop.counter0|add:1 }}">
+                <div class="card p-3 h-100">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="rating">
+                            {% for i in "12345"|make_list %}
+                            {% if forloop.counter <= review.rating %}
+                            <i class="fas fa-star"></i>
+                            {% else %}
+                            <i class="far fa-star"></i>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                        <span class="badge gold-btn">{{ review.rating_label }}</span>
+                    </div>
+                    <p class="card-text">{{ review.text }}</p>
+                    <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+                        <small class="text-muted">
+                            <i class="fas fa-user-circle me-1"></i>
+                            {{ review.author.username }}
+                        </small>
+                        <small class="text-muted">
+                            <i class="far fa-calendar me-1"></i>
+                            {{ review.created_at|date:"d.m.Y" }}
+                        </small>
+                    </div>
+                    {% if review.author_total_reviews > 1 %}
+                    <small class="text-muted mt-1">
+                        <i class="fas fa-star me-1"></i>Всего отзывов: {{ review.author_total_reviews }}
+                    </small>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}

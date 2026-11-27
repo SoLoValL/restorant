@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Карта зала - Ресторан</title>
+    {% load static %}
+    <link href="{% static 'bootstrap/5.3.3/css/bootstrap.min.css' %}" rel="stylesheet">
+    <link href="{% static 'font-awesome/6.5.0/css/all.min.css' %}" rel="stylesheet">
+    <style>
+        :root { --gold: #c9a96e; --dark: #1a1a2e; }
+        body { background: #f8f9fa; font-family: Georgia, serif; }
+        .page-header { background: var(--dark); color: var(--gold); padding: 2rem 0; margin-bottom: 2rem; }
+        .page-header h1 { font-weight: bold; }
+        .zone-filters .btn { margin-right: 0.5rem; margin-bottom: 0.5rem; }
+        .map-container { background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding: 2rem; overflow-x: auto; }
+        .table-circle { cursor: pointer; transition: all 0.3s ease; }
+        .table-circle:hover { filter: brightness(1.2); }
+        .table-circle.available { fill: #28a745; }
+        .table-circle.occupied { fill: #dc3545; }
+        .table-circle.selected { fill: var(--gold); }
+        .table-label { font-weight: bold; fill: white; pointer-events: none; font-size: 14px; }
+        .table-capacity { fill: white; pointer-events: none; font-size: 11px; }
+        .zone-rect { rx: 15; ry: 15; opacity: 0.15; }
+        .zone-label { font-weight: bold; font-size: 16px; pointer-events: none; }
+        .legend-item { display: inline-flex; align-items: center; margin-right: 1.5rem; }
+        .legend-dot { width: 16px; height: 16px; border-radius: 50%; margin-right: 0.5rem; }
+        .info-panel { background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding: 1.5rem; }
+        .modal-header { background: var(--dark); color: var(--gold); }
+        .modal-header .btn-close { filter: invert(1); }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top" style="background: var(--dark) !important;">
+        <div class="container">
+            <a class="navbar-brand fs-3" href="{% url 'home' %}"><i class="fas fa-utensils me-2"></i>Ресторан</a>
+            <a class="nav-link" href="{% url 'home' %}"><i class="fas fa-home me-1"></i>Главная</a>
+        </div>
+    </nav>
+
+    <div class="page-header">
+        <div class="container text-center">
+            <h1><i class="fas fa-map-marked-alt me-3"></i>Карта зала</h1>
+            <p class="mb-0">Выберите стол для бронирования</p>
+        </div>
+    </div>
+
+    <div class="container mb-5">
+        <div class="mb-4">
+            <div class="legend-item"><span class="legend-dot" style="background:#28a745"></span>Свободен</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#dc3545"></span>Занят</div>
+            <div class="legend-item"><span class="legend-dot" style="background:var(--gold)"></span>Выбран</div>
+        </div>
+
+        <div class="zone-filters mb-4">
+            <button class="btn btn-outline-dark btn-sm" onclick="filterZone('all')"><i class="fas fa-th me-1"></i>Все зоны</button>
+            {% for zone_choice in zone_choices %}
+            <button class="btn btn-outline-dark btn-sm" onclick="filterZone('{{ zone_choice.0 }}')"><i class="fas fa-filter me-1"></i>{{ zone_choice.1 }}</button>
+            {% endfor %}
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8 mb-4">
+                <div class="map-container">
+                    <svg id="restaurantMap" width="800" height="500" viewBox="0 0 800 500">
+                        <rect class="zone-rect" x="80" y="60" width="240" height="160" fill="#4dabf7"/>
+                        <text class="zone-label" x="100" y="80" fill="#4dabf7">Основной зал</text>
+                        <rect class="zone-rect" x="430" y="40" width="300" height="120" fill="#69db7c"/>
+                        <text class="zone-label" x="450" y="60" fill="#69db7c">Терраса</text>
+                        <rect class="zone-rect" x="50" y="300" width="180" height="140" fill="#da77f2"/>
+                        <text class="zone-label" x="70" y="320" fill="#da77f2">VIP-зона</text>
+                        <rect class="zone-rect" x="260" y="300" width="180" height="140" fill="#ffd43b"/>
+                        <text class="zone-label" x="280" y="320" fill="#868e96">У окон</text>
+                        <rect class="zone-rect" x="480" y="240" width="240" height="200" fill="#ff8787"/>
+                        <text class="zone-label" x="500" y="260" fill="#ff8787">У бара</text>
+                        <g id="tablesGroup"></g>
+                    </svg>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="info-panel" id="infoPanel">
+                    <h5><i class="fas fa-info-circle me-2" style="color:var(--gold)"></i>Информация</h5>
+                    <p class="text-muted">Нажмите на стол, чтобы увидеть доступность и забронировать.</p>
+                    <hr>
+                    <div id="tableInfo">
+                        <p><strong>Всего столов:</strong> {{ tables|length }}</p>
+                        <p><strong>Свободно:</strong> <span id="availableCount">0</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="bookingModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-calendar-check me-2"></i>Бронирование стола №<span id="modalTableNumber"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="modalTableDetails" class="mb-3"></div>
+                    <form id="bookingForm">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Ваше имя</label>
+                            <input type="text" class="form-control" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Телефон</label>
+                            <input type="tel" class="form-control" name="phone" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Дата</label>
+                            <input type="date" class="form-control" name="date" id="bookingDate" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Время</label>
+                            <input type="time" class="form-control" name="time" id="bookingTime" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Количество гостей</label>
+                            <input type="number" class="form-control" name="guests" min="1" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Комментарий</label>
+                            <textarea class="form-control" name="comment" rows="2"></textarea>
+                        </div>
+                        <div id="availabilityStatus" class="mb-3"></div>
+                        <button type="submit" class="btn w-100" style="background:var(--gold);color:white;border:none;">Забронировать</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{% static 'bootstrap/5.3.3/js/bootstrap.bundle.min.js' %}"></script>
+    <script>
+        const tables = {{ tables|safe }};
+        let selectedTable = null;
+        const zoneColors = {
+            main_hall: '#4dabf7', terrace: '#69db7c', vip: '#da77f2',
+            window: '#ffd43b', bar: '#ff8787'
+        };
+
+        function renderTables(filterZoneName = 'all') {
+            const group = document.getElementById('tablesGroup');
+            group.innerHTML = '';
+            let availableCount = 0;
+            tables.forEach(table => {
+                if (filterZoneName !== 'all' && table.zone !== filterZoneName) return;
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', table.svg_x);
+                circle.setAttribute('cy', table.svg_y);
+                circle.setAttribute('r', 25);
+                circle.setAttribute('class', 'table-circle available');
+                circle.setAttribute('data-table-id', table.id);
+                circle.addEventListener('click', () => selectTable(table));
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', table.svg_x);
+                text.setAttribute('y', table.svg_y - 5);
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('class', 'table-label');
+                text.textContent = '#' + table.number;
+                const cap = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                cap.setAttribute('x', table.svg_x);
+                cap.setAttribute('y', table.svg_y + 12);
+                cap.setAttribute('text-anchor', 'middle');
+                cap.setAttribute('class', 'table-capacity');
+                cap.textContent = table.capacity + ' чел.';
+                group.appendChild(circle);
+                group.appendChild(text);
+                group.appendChild(cap);
+                availableCount++;
+            });
+            document.getElementById('availableCount').textContent = availableCount;
+        }
+
+        function filterZone(zone) { renderTables(zone); }
+
+        function selectTable(table) {
+            selectedTable = table;
+            document.getElementById('modalTableNumber').textContent = table.number;
+            document.getElementById('modalTableDetails').innerHTML =
+                '<p><strong>Зона:</strong> ' + table.zone_label + '</p>' +
+                '<p><strong>Вместимость:</strong> ' + table.capacity + ' чел.</p>';
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('bookingDate').min = today;
+            document.getElementById('bookingDate').value = today;
+            const modal = new bootstrap.Modal(document.getElementById('bookingModal'));
+            modal.show();
+        }
+
+        document.getElementById('bookingDate').addEventListener('change', checkAvailability);
+        document.getElementById('bookingTime').addEventListener('change', checkAvailability);
+
+        async function checkAvailability() {
+            if (!selectedTable) return;
+            const date = document.getElementById('bookingDate').value;
+            const time = document.getElementById('bookingTime').value;
+            if (!date || !time) return;
+            const status = document.getElementById('availabilityStatus');
+            status.innerHTML = '<div class="spinner-border text-primary"></div> Проверка...';
+            try {
+                const resp = await fetch('/check-table-availability/?table_id=' + selectedTable.id + '&date=' + date + '&time=' + time);
+                const data = await resp.json();
+                if (data.available) {
+                    status.innerHTML = '<div class="alert alert-success"><i class="fas fa-check me-2"></i>Стол доступен!</div>';
+                } else {
+                    status.innerHTML = '<div class="alert alert-danger"><i class="fas fa-times me-2"></i>Стол занят в это время</div>';
+                }
+            } catch (e) {
+                status.innerHTML = '<div class="alert alert-warning">Ошибка проверки</div>';
+            }
+        }
+
+        document.getElementById('bookingForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const csrftoken = formData.get('csrfmiddlewaretoken');
+            const data = {};
+            formData.forEach((val, key) => { if (key !== 'csrfmiddlewaretoken') data[key] = val; });
+            data.table_id = selectedTable.id;
+            try {
+                const resp = await fetch('/api/reservations/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                    body: JSON.stringify(data)
+                });
+                const result = await resp.json();
+                if (resp.ok) {
+                    alert('Бронирование успешно!');
+                    location.reload();
+                } else {
+                    alert('Ошибка: ' + (result.detail || 'Не удалось забронировать'));
+                }
+            } catch (err) {
+                alert('Ошибка сети');
+            }
+        });
+
+        renderTables();
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
